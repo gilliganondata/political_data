@@ -1,0 +1,85 @@
+---
+title: "Political Data"
+output: html_notebook
+---
+
+This is a light exploration of the [politicaldata](https://cran.r-project.org/web/packages/politicaldata/index.html) R package. 
+
+```{r}
+
+library(tidyverse)
+library(scales)
+library(politicaldata)
+
+```
+
+## Presidential Data
+
+```{r}
+
+df_pres <- politicaldata::pres_results 
+
+df_pres_total <- df_pres %>% 
+  mutate(dem_votes = dem * total_votes,
+         rep_votes = rep * total_votes,
+         other_votes = other * total_votes) %>% 
+  group_by(year) %>% 
+  summarise(Democrat = sum(dem_votes),
+            Republican = sum(rep_votes),
+            Other = sum(other_votes)) %>% 
+  ungroup() %>% 
+  mutate(Other = if_else(is.na(Other), 0, Other)) %>% 
+  pivot_longer(-year, names_to = "Party", values_to = "Total Votes") %>% 
+  mutate(Party = factor(Party, levels = c("Democrat", "Republican", "Other")))
+
+```
+
+Plot over time
+
+```{r}
+
+gg <- ggplot(df_pres_total, aes(x = year, y = `Total Votes`, group = Party, color = Party)) +
+  geom_line() +
+  scale_color_manual(values = c("blue", "red", "gray60")) +
+  scale_y_continuous(expand = c(0,0), limits = c(0, max(df_pres_total$`Total Votes`) * 1.05), label = comma) +
+  scale_x_continuous(breaks = seq(1976, 2016, 4)) +
+  labs(title = "Total Votes by Party for the U.S. Presidential Elections",
+       subtitle = "1976-2016") +
+  theme_light() +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line.x = element_line(color = "gray40") ,
+        plot.title.position = "plot",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.border = element_blank())
+
+gg
+
+```
+
+
+## House of Representatives
+
+```{r fig.height = 30, fig.width = 4}
+
+df_house_116 <- get_house_nominate(116) %>% 
+  mutate(name_st = paste0(bioname, " - ", party_code, " (", state_abbrev, ")")) %>% 
+  arrange(nominate_dim1)
+
+df_house_116$name_st <- factor(df_house_116$name_st, levels = df_house_116$name_st)
+
+gg <- ggplot(df_house_116, aes(x = name_st, y = nominate_dim1)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  theme(axis.title = element_blank(),
+        axis.text.y = element_text(size = 6))
+
+gg
+
+```
+
+
